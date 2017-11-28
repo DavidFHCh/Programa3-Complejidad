@@ -7,7 +7,7 @@ import java.util.TreeMap;
 public class TSP {
 
     Random rand;
-    final int PRIMGEN = 20;
+    final int PRIMGEN = 100;
     final double MUTPROB = 0.2;
 
     TreeMap<Integer,TSPInd> poblacionOrden;
@@ -140,7 +140,7 @@ public class TSP {
         double restantes = 1;
         for (Map.Entry<Integer, TSPInd> et:pob.entrySet()) {
             pobRes.put(restantes,et.getValue());
-            restantes = restantes/2;
+            restantes = restantes/1.4;
         }
         poblacionProb = pobRes;
         poblacionOrden = pob;
@@ -150,13 +150,13 @@ public class TSP {
     private void reemplazo(TSPInd ind1, TSPInd ind2) {
         double prob1 = rand.nextDouble();
         double prob2 = rand.nextDouble();
-        if (prob1 > 0 && prob2 > 0) {
-            poblacionProb.remove(poblacionProb.floorKey(prob1));
-            poblacionProb.remove(poblacionProb.floorKey(prob2));
-        } else {
-            poblacionProb.remove(poblacionProb.ceilingKey(prob1));
-            poblacionProb.remove(poblacionProb.ceilingKey(prob2));
-        }
+        double key1 = -1.0, key2 = -1.0;
+        if(poblacionProb.floorKey(prob1) == null)
+            key1 = poblacionProb.ceilingKey(prob1);
+        if(poblacionProb.floorKey(prob2) == null)
+            key2 = poblacionProb.ceilingKey(prob2);
+        poblacionProb.remove(key1);
+        poblacionProb.remove(key2);
         poblacionOrden.clear();
         for (Map.Entry<Double, TSPInd> et: poblacionProb.entrySet()) {
             TSPInd ind = et.getValue();
@@ -167,7 +167,7 @@ public class TSP {
         double restantes = 1;
         for (Map.Entry<Integer, TSPInd> et:poblacionOrden.entrySet()) {
             poblacionProb.put(restantes,et.getValue());
-            restantes = restantes/2;
+            restantes = restantes/1.4;
         }
     }
 
@@ -179,102 +179,192 @@ public class TSP {
         int ciudad2 = Integer.max(ciudad1A,ciudad2A);
         ArrayList<Integer> res1 = new ArrayList<>();
         ArrayList<Integer> res2 = new ArrayList<>();
-        for (int i = 0; i < ciudad1; i++) {
-            res1.add(ind1.camino.get(i));
-            res2.add(ind2.camino.get(i));
-        }
-        for(int i = ciudad2; i < 50; i++) {
-            res1.add(ind2.camino.get(i));
-            res2.add(ind1.camino.get(i));
-        }
-        for(int i = ciudad1; i < ciudad2; i++) {
-            res1.add(ind1.camino.get(i));
-            res2.add(ind2.camino.get(i));
+        for (int i = 0; i < ind1.camino.size(); i++) {
+            if (i >= ciudad1 && i < ciudad2){
+                res1.add(ind1.camino.get(i));
+                res2.add(ind2.camino.get(i));
+            } else {
+                res1.add(-1);
+                res2.add(-1);
+            }
         }
 
-        ArrayList<ArrayList<Integer>> mappings = new ArrayList<>();
-        ArrayList<Integer> mapped = new ArrayList<>();
-        for (int i = ciudad1; i < ciudad2; i++){
-            if (mapped.contains(i)) {
-                continue;
+        //llenando res1
+        ArrayList<Integer> is1 = new ArrayList<>();
+        ArrayList<Integer> js1 = new ArrayList<>();
+        ArrayList<Integer> ks1 = new ArrayList<>();
+
+        for (int i = 0; i < ciudad2; i++) {
+            if (!res1.contains(res2.get(i))) {
+                js1.add(res1.get(i));
+                is1.add(res2.get(i));
+            }
+        }
+        for (int i = 0; i < is1.size(); i++) {
+            if (res2.contains(js1.get(i))) {
+                int elem = res1.get(res2.indexOf(js1.get(i)));
+                int index = ind2.camino.indexOf(elem);
+                ks1.add(index);
+                js1.set(i,-1);
+                while (index < ciudad2 && index >= ciudad1) {
+                    index = ind2.camino.indexOf(res1.get(index));
+                    ks1.set(i,index);
+                }
             } else {
-                ArrayList<Integer> map = new ArrayList<>();
-                mapped.add(i);
-                map.add(res1.get(i));
-                int l = i;
-                while (fmapping(l,ciudad1,ciudad2,mapped,map,res1,res2)){
-                    l = mapped.get(mapped.size()-1);
-                }
-                if (!map.isEmpty())
-                    mappings.add(map);
+                ks1.add(-1);
             }
         }
-        for (ArrayList<Integer> map: mappings) {
-            int i = map.get(0);
-            int j = map.get(map.size()-1);
-            for(int k = 0; k < ciudad1; k++) {
-                if (res1.get(k) == i) {
-                    res1.set(k,j);
-                }
-                if (res2.get(k) == j) {
-                    res2.set(k,i);
-                }
+        //llenando res2
+        ArrayList<Integer> is2 = new ArrayList<>();
+        ArrayList<Integer> js2 = new ArrayList<>();
+        ArrayList<Integer> ks2 = new ArrayList<>();
+
+        for (int i = 0; i < ciudad2; i++) {
+            if (!res2.contains(res1.get(i))) {
+                is2.add(res1.get(i));
+                js2.add(res2.get(i));
             }
-            for(int k = ciudad2; k < 50; k++) {
-                if (res1.get(k) == i) {
-                    res1.set(k,j);
+        }
+        for (int i = 0; i < is1.size(); i++) {
+            if (res1.contains(js2.get(i))) {
+                int elem = res2.get(res1.indexOf(js2.get(i)));
+                int index = ind1.camino.indexOf(elem);
+                ks2.add(index);
+                js2.set(i,-1);
+                while (index < ciudad2 && index >= ciudad1) {
+                    index = ind1.camino.indexOf(res2.get(index));
+                    ks2.set(i,index);
                 }
-                if (res2.get(k) == j) {
-                    res2.set(k,i);
+            } else {
+                ks2.add(-1);
+            }
+        }
+
+        //res1
+        for(int in = 0; in < js1.size();in++) {
+            if(js1.get(in) == -1) {
+                continue;
+            }
+            res1.set(in,is1.get(in));
+        }
+        for(int in = 0; in < ks1.size();in++) {
+            if(ks1.get(in) == -1) {
+                continue;
+            }
+            res1.set(ks1.get(in),is1.get(in));
+        }
+        //res2
+        for(int in = 0; in < js2.size();in++) {
+            if(js2.get(in) == -1) {
+                continue;
+            }
+            res2.set(in,is2.get(in));
+        }
+        for(int in = 0; in < ks2.size();in++) {
+            if(ks2.get(in) == -1) {
+                continue;
+            }
+            res2.set(ks2.get(in),is2.get(in));
+        }
+
+
+        for(int in = 0; in < res1.size(); in++) {
+            if(res1.get(in) != -1) {
+                continue;
+            }
+            for(int on : ind2.camino) {
+                if (!res1.contains(on)){
+                    res1.set(in,on);
+                    break;
                 }
             }
         }
+
+        for(int in = 0; in < res2.size(); in++) {
+            if(res2.get(in) != -1) {
+                continue;
+            }
+            for(int on : ind1.camino) {
+                if (!res2.contains(on)){
+                    res2.set(in,on);
+                    break;
+                }
+            }
+        }
+
+        while (res1.contains(-1)) {
+            for(int i = 0; i < 50; i++) {
+                if(!res1.contains(i)) {
+                    int index = res1.indexOf(-1);
+                    res1.set(index,i);
+                }
+
+            }
+        }
+        while (res2.contains(-1)) {
+            for(int i = 0; i < 50; i++) {
+                if(!res2.contains(i)) {
+                    int index = res2.indexOf(-1);
+                    res2.set(index,i);
+                }
+
+            }
+        }
+
+
         reemplazo(new TSPInd(res1,rand),new TSPInd(res2,rand));
     }
 
-    private boolean fmapping(int i, int ciudad1, int ciudad2,ArrayList<Integer> mapped, ArrayList<Integer> map ,ArrayList<Integer> r1, ArrayList<Integer> r2) {
-        int j = ciudad1;
-        while (r2.get(i) != r1.get(j)) {
-            if(mapped.contains(j)){
-                j++;
-                continue;
-            }
-            j++;
-            if (j > ciudad2)
-                return false;
-        }
-        mapped.add(j);
-        map.add(r2.get(j));
-        return true;
-    }
 
     public void CC(TSPInd ind1, TSPInd ind2) {
-        ArrayList<Integer> mapped = new ArrayList<>();
-        ArrayList<Integer> map = new ArrayList<>();
+        ArrayList<Integer> cycle1 = new ArrayList<>();
+        ArrayList<Integer> cycle2 = new ArrayList<>();
         ArrayList<Integer> camino1 = ind1.camino;
         ArrayList<Integer> camino2 = ind2.camino;
         ArrayList<Integer> res1 = new ArrayList<>();
         ArrayList<Integer> res2 = new ArrayList<>();
-        int ciudad1A = rand.nextInt(50);
-        int ciudad2A = rand.nextInt(50);
-        int ciudad1 = Integer.min(ciudad1A,ciudad2A);
-        int ciudad2 = Integer.max(ciudad1A,ciudad2A);
-        int l = 0;
-        while (fmapping(l,ciudad1,ciudad2,mapped,map,camino1,camino2)){
-            l = mapped.get(mapped.size()-1);
-        }
-        for (int i = 0; i < camino1.size(); i++) {
-            if (map.contains(camino1.get(i))) {
-                res1.add(camino1.get(i));
+        int current = camino1.get(0);
+        int index = 0;
+        do {
+            cycle1.add(current);
+            current = camino2.get(index);
+            index = camino1.indexOf(current);
+        }while (current != camino1.get(0));
+        current = -1;
+        do {
+            cycle2.add(current);
+            current = camino1.get(index);
+            index = camino2.indexOf(current);
+        }while (current != camino2.get(0));
+
+        for(int i = 0; i < camino1.size(); i++) {
+            int index1 = 0;
+            int index2 = 0;
+            if(camino1.get(i) == cycle1.get(index1)) {
+                res1.add(cycle1.get(index1));
+                index1++;
             } else {
-                res1.add(camino2.get(i));
+                for(int j = 0; j < camino2.size(); j++) {
+                    if(!res1.contains(camino2.get(j))){
+                        res1.add(camino2.get(j));
+                        break;
+                    }
+                }
             }
-            if (map.contains(camino2.get(i))) {
-                res2.add(camino2.get(i));
+
+            if(camino2.get(i) == cycle2.get(index2)) {
+                res2.add(cycle2.get(index2));
+                index2++;
             } else {
-                res2.add(camino1.get(i));
+                for(int j = 0; j < camino1.size(); j++) {
+                    if(!res2.contains(camino1.get(j))){
+                        res2.add(camino1.get(j));
+                        break;
+                    }
+                }
             }
         }
+
         reemplazo(new TSPInd(res1,rand),new TSPInd(res2,rand));
     }
 
@@ -302,25 +392,48 @@ public class TSP {
             int c2 = camino2.get(i);
             if (!res1.contains(c2)) {
                 int k = 0;
-                while (res1.get(k) != -1) {
+                while (k < 50 && res1.get(k) != -1 ) {
                     k++;
                 }
                 res1.set(k,c2);
             }
             if (!res2.contains(c1)) {
                 int k = 0;
-                while (res2.get(k) != -1) {
+                while (k < 50 && res2.get(k) != -1) {
                     k++;
                 }
                 res2.set(k,c1);
             }
         }
+
+        while (res1.contains(-1)) {
+            for(int i = 0; i < 50; i++) {
+                if(!res1.contains(i)) {
+                    int index = res1.indexOf(-1);
+                    res1.set(index,i);
+                }
+
+            }
+        }
+        while (res2.contains(-1)) {
+            for(int i = 0; i < 50; i++) {
+                if(!res2.contains(i)) {
+                    int index = res2.indexOf(-1);
+                    res2.set(index,i);
+                }
+
+            }
+        }
+
         reemplazo(new TSPInd(res1,rand),new TSPInd(res2,rand));
     }
 
     public TSPInd eleccion() {
         double random = rand.nextDouble();
         Map.Entry<Double, TSPInd> et = poblacionProb.lowerEntry(random);
+        if(et == null) {
+            et = poblacionProb.higherEntry(random);
+        }
         return et.getValue();
     }
 
@@ -332,16 +445,19 @@ public class TSP {
         int iteraciones = 0;
         double random = tsp.rand.nextDouble();
         System.out.println(minEval + " , " + maxEval);
-        while (contadorNoMejora < 10 || iteraciones < 200) {
+        while (contadorNoMejora < 10 && iteraciones < 200000) {
             int prob1 = (int)((random*10)%3);
             switch (prob1) {
                 case 0:
+                System.out.println("PMX");
                     tsp.PMX(tsp.eleccion(),tsp.eleccion());
                     break;
                 case 1:
+                System.out.println("CC");
                     tsp.CC(tsp.eleccion(),tsp.eleccion());
                     break;
                 case 2:
+                System.out.println("OC");
                     tsp.OC(tsp.eleccion(),tsp.eleccion());
                     break;
             }
@@ -353,9 +469,11 @@ public class TSP {
                     TSPInd ind = tsp.eleccion();
                     switch (prob1) {
                         case 0:
+                        System.out.println("eM");
                             ind.exchangeMutation();
                             break;
                         case 1:
+                        System.out.println("dM");
                             ind.displacementMutation();
                             break;
 
@@ -368,7 +486,8 @@ public class TSP {
             System.out.println("Mejor evaluacion: " + tsp.poblacionOrden.firstKey());
             iteraciones++;
         }
-
-
+        System.out.println("--------------------------");
+        System.out.println("Mejor camino: " + tsp.poblacionOrden.firstEntry().getValue().camino);
+        System.out.println("Mejor evaluacion: " + tsp.poblacionOrden.firstKey());
     }
 }
